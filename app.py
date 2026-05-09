@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import joblib
-import pickle
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -21,11 +20,8 @@ st.set_page_config(
 # LOAD MODEL FILES
 # ---------------------------------------------------
 try:
-    with open("salary_model.pkl", "rb") as f:
-        model = pickle.load(f)
-
-    with open("salary_columns.pkl", "rb") as f:
-        model_columns = pickle.load(f)
+    model = joblib.load("salary_model.pkl")
+    model_columns = joblib.load("salary_columns.pkl")
 
 except Exception as e:
     st.error(f"Error loading model files: {e}")
@@ -37,9 +33,13 @@ except Exception as e:
 DATA_PATH = "job_salary_prediction_dataset.csv"
 
 if os.path.exists(DATA_PATH):
+
     df = pd.read_csv(DATA_PATH)
+
 else:
+
     st.warning("Dataset not found. Using sample data.")
+
     df = pd.DataFrame({
         "experience_years": np.random.randint(1, 20, 100),
         "salary": np.random.randint(30000, 150000, 100)
@@ -57,23 +57,36 @@ exp_col = "experience_years"
 salary_col = "salary"
 
 # ---------------------------------------------------
-# CHECK REQUIRED COLUMNS
+# VALIDATE COLUMNS
 # ---------------------------------------------------
 if exp_col not in df.columns:
-    st.error(f"Missing column: {exp_col}")
+
+    st.error(f"Missing required column: {exp_col}")
+
     st.write("Available columns:", df.columns.tolist())
+
     st.stop()
 
 if salary_col not in df.columns:
-    st.error(f"Missing column: {salary_col}")
+
+    st.error(f"Missing required column: {salary_col}")
+
     st.write("Available columns:", df.columns.tolist())
+
     st.stop()
 
 # ---------------------------------------------------
 # CONVERT TO NUMERIC
 # ---------------------------------------------------
-df[exp_col] = pd.to_numeric(df[exp_col], errors="coerce")
-df[salary_col] = pd.to_numeric(df[salary_col], errors="coerce")
+df[exp_col] = pd.to_numeric(
+    df[exp_col],
+    errors="coerce"
+)
+
+df[salary_col] = pd.to_numeric(
+    df[salary_col],
+    errors="coerce"
+)
 
 df = df.dropna(subset=[exp_col, salary_col])
 
@@ -117,22 +130,40 @@ certifications = st.sidebar.number_input(
 
 education = st.sidebar.selectbox(
     "Education Level",
-    ["High School", "Bachelor", "Master", "PhD"]
+    [
+        "High School",
+        "Bachelor",
+        "Master",
+        "PhD"
+    ]
 )
 
 industry = st.sidebar.selectbox(
     "Industry",
-    ["IT", "Finance", "Healthcare", "Education", "Retail"]
+    [
+        "IT",
+        "Finance",
+        "Healthcare",
+        "Education",
+        "Retail"
+    ]
 )
 
 company_size = st.sidebar.selectbox(
     "Company Size",
-    ["Small", "Medium", "Large"]
+    [
+        "Small",
+        "Medium",
+        "Large"
+    ]
 )
 
 remote = st.sidebar.selectbox(
     "Remote Work",
-    ["Yes", "No"]
+    [
+        "Yes",
+        "No"
+    ]
 )
 
 # ---------------------------------------------------
@@ -141,14 +172,17 @@ remote = st.sidebar.selectbox(
 m1, m2, m3, m4 = st.columns(4)
 
 m1.metric("Experience", f"{experience} yrs")
+
 m2.metric("Skills", skills)
+
 m3.metric("Certifications", certifications)
+
 m4.metric("Remote Work", remote)
 
 st.divider()
 
 # ---------------------------------------------------
-# PREDICTION SECTION
+# PREDICTION
 # ---------------------------------------------------
 if st.button("Predict Salary"):
 
@@ -156,6 +190,7 @@ if st.button("Predict Salary"):
 
         # INPUT DATA
         input_data = pd.DataFrame([{
+
             "experience_years": experience,
             "skills_count": skills,
             "certifications": certifications,
@@ -164,12 +199,13 @@ if st.button("Predict Salary"):
             "industry": industry,
             "company_size": company_size,
             "remote_work": remote
+
         }])
 
-        # ENCODE
+        # ENCODE CATEGORICAL VARIABLES
         input_data = pd.get_dummies(input_data)
 
-        # ALIGN COLUMNS
+        # ALIGN FEATURES
         input_data = input_data.reindex(
             columns=model_columns,
             fill_value=0
@@ -191,12 +227,15 @@ if st.button("Predict Salary"):
         # SALARY CATEGORY
         # ---------------------------------------------------
         if prediction < 40000:
+
             st.info("Entry-Level Salary Range")
 
         elif prediction < 90000:
+
             st.warning("Mid-Level Salary Range")
 
         else:
+
             st.success("Senior-Level Salary Range")
 
         # ---------------------------------------------------
@@ -222,7 +261,7 @@ if st.button("Predict Salary"):
         plt.close()
 
         # ---------------------------------------------------
-        # CREATE PDF
+        # PDF GENERATION
         # ---------------------------------------------------
         def create_pdf():
 
@@ -231,7 +270,11 @@ if st.button("Predict Salary"):
             pdf.add_page()
 
             # TITLE
-            pdf.set_font("Arial", "B", 16)
+            pdf.set_font(
+                "Arial",
+                "B",
+                16
+            )
 
             pdf.cell(
                 200,
@@ -244,7 +287,10 @@ if st.button("Predict Salary"):
             pdf.ln(10)
 
             # BODY
-            pdf.set_font("Arial", size=12)
+            pdf.set_font(
+                "Arial",
+                size=12
+            )
 
             report_text = f"""
 Experience: {experience} years
@@ -258,12 +304,11 @@ Remote Work: {remote}
 Predicted Salary:
 R {prediction:,.0f} per year
 
-Insights:
+Key Insights:
 - Salary generally increases with experience
-- Skills improve earning potential
-- Certifications positively impact salary
-- Industry and company size influence compensation
-- Education level contributes to career growth
+- Certifications positively impact salary growth
+- Industry and company size influence earnings
+- Education level contributes to salary potential
 """
 
             pdf.multi_cell(
@@ -275,7 +320,11 @@ Insights:
             pdf.ln(5)
 
             # GRAPH TITLE
-            pdf.set_font("Arial", "B", 12)
+            pdf.set_font(
+                "Arial",
+                "B",
+                12
+            )
 
             pdf.cell(
                 0,
@@ -284,7 +333,7 @@ Insights:
                 ln=True
             )
 
-            # ADD IMAGE
+            # INSERT GRAPH IMAGE
             pdf.image(
                 graph_path,
                 x=10,
@@ -298,7 +347,7 @@ Insights:
         pdf_data = create_pdf()
 
         # ---------------------------------------------------
-        # DOWNLOAD PDF
+        # DOWNLOAD BUTTON
         # ---------------------------------------------------
         st.download_button(
             label="Download PDF Report",
@@ -308,7 +357,10 @@ Insights:
         )
 
     except Exception as e:
+
         st.error(f"Prediction Error: {e}")
+
+st.divider()
 
 # ---------------------------------------------------
 # DATA VISUALIZATION
@@ -359,6 +411,7 @@ with col2:
     )
 
     ax.set_xlabel("Experience Years")
+
     ax.set_ylabel("Salary")
 
     st.pyplot(fig)
@@ -372,11 +425,12 @@ st.subheader("Model Performance Dashboard")
 
 try:
 
-    # USE NUMERIC FEATURES
+    # NUMERIC FEATURES ONLY
     X = df.select_dtypes(include=[np.number]).copy()
 
     # REMOVE TARGET
     if salary_col in X.columns:
+
         X = X.drop(columns=[salary_col])
 
     # ALIGN MODEL FEATURES
@@ -387,10 +441,10 @@ try:
 
     y = df[salary_col]
 
-    # PREDICT
+    # PREDICTIONS
     y_pred = model.predict(X)
 
-    # SCORES
+    # METRICS
     r2 = r2_score(y, y_pred)
 
     mse = mean_squared_error(y, y_pred)
@@ -413,6 +467,8 @@ except Exception as e:
         f"Model evaluation skipped: {e}"
     )
 
+st.divider()
+
 # ---------------------------------------------------
 # BUSINESS INSIGHTS
 # ---------------------------------------------------
@@ -420,8 +476,8 @@ st.subheader("Business Insights")
 
 st.write("""
 - Employees with more experience generally earn higher salaries
-- Certifications and skills improve earning potential
+- Certifications and technical skills improve earning potential
 - Industry type significantly affects salary levels
 - Larger companies may offer higher compensation
-- Education level contributes to salary growth
+- Education level contributes to long-term salary growth
 """)
