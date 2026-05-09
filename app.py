@@ -4,30 +4,26 @@ import joblib
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from datetime import datetime
 from fpdf import FPDF
+from datetime import datetime
 
-# -----------------------------
+# =========================
 # PAGE CONFIG
-# -----------------------------
+# =========================
 st.set_page_config(
-    page_title="SA Salary Intelligence System",
+    page_title="Salary Intelligence System",
     layout="wide"
 )
 
-# -----------------------------
-# LOAD MODEL (FIXED)
-# -----------------------------
-try:
-    model = joblib.load("salary_model.pkl")
-    columns = joblib.load("salary_columns.pkl")
-except Exception as e:
-    st.error(f"Model loading failed: {e}")
-    st.stop()
+# =========================
+# LOAD MODEL
+# =========================
+model = joblib.load("salary_model.pkl")
+columns = joblib.load("salary_columns.pkl")
 
-# -----------------------------
-# LOAD DATA
-# -----------------------------
+# =========================
+# LOAD DATASET
+# =========================
 df = pd.read_csv("job_salary_prediction_dataset.csv")
 df.columns = df.columns.str.lower().str.replace(" ", "_")
 
@@ -38,21 +34,20 @@ df[exp_col] = pd.to_numeric(df[exp_col], errors="coerce")
 df[salary_col] = pd.to_numeric(df[salary_col], errors="coerce")
 df = df.dropna()
 
-# -----------------------------
+# =========================
 # TITLE
-# -----------------------------
-st.title("South African Salary Intelligence System")
-
-st.markdown("AI-powered salary prediction and market analysis for South Africa.")
+# =========================
+st.title("Salary Intelligence System (South Africa)")
+st.write("Machine learning system for salary prediction and market analysis")
 
 st.divider()
 
-# -----------------------------
-# INPUT
-# -----------------------------
-st.sidebar.header("Candidate Profile")
+# =========================
+# SIDEBAR INPUT
+# =========================
+st.sidebar.header("Input Profile")
 
-experience = st.sidebar.number_input("Experience (Years)", 0, 40, 3)
+experience = st.sidebar.number_input("Experience Years", 0, 40, 3)
 skills = st.sidebar.number_input("Skills Count", 1, 50, 5)
 certifications = st.sidebar.number_input("Certifications", 0, 20, 1)
 
@@ -76,9 +71,9 @@ remote = st.sidebar.selectbox(
     ["Yes", "No"]
 )
 
-# -----------------------------
+# =========================
 # PREDICTION
-# -----------------------------
+# =========================
 if st.button("Predict Salary"):
 
     input_df = pd.DataFrame([{
@@ -96,37 +91,37 @@ if st.button("Predict Salary"):
 
     prediction = model.predict(input_df)[0]
 
-    # -----------------------------
-    # SOUTH AFRICAN SALARY BANDS
-    # -----------------------------
-    def band(s):
+    # =========================
+    # SA SALARY BANDS
+    # =========================
+    def get_band(s):
         if s < 150000:
-            return "Entry Level (R0–150k)"
+            return "Entry Level"
         elif s < 350000:
-            return "Junior (R150k–350k)"
+            return "Junior"
         elif s < 700000:
-            return "Mid-Level (R350k–700k)"
+            return "Mid-Level"
         elif s < 1200000:
-            return "Senior (R700k–1.2M)"
+            return "Senior"
         else:
-            return "Executive (R1.2M+)"
+            return "Executive"
 
-    salary_band = band(prediction)
+    band = get_band(prediction)
 
-    # -----------------------------
+    # =========================
     # OUTPUT
-    # -----------------------------
+    # =========================
     c1, c2 = st.columns(2)
 
     with c1:
         st.metric("Predicted Salary (ZAR)", f"R {prediction:,.0f}")
 
     with c2:
-        st.info(salary_band)
+        st.info(band)
 
-    # -----------------------------
+    # =========================
     # MARKET COMPARISON
-    # -----------------------------
+    # =========================
     market_avg = df[salary_col].mean()
 
     if prediction > market_avg:
@@ -134,43 +129,46 @@ if st.button("Predict Salary"):
     else:
         st.warning("Below South African market average")
 
-    # -----------------------------
+    # =========================
     # INSIGHTS
-    # -----------------------------
-    st.subheader("AI Insights")
+    # =========================
+    st.subheader("Insights")
 
-    st.write("""
-    - Experience is the strongest salary driver in South Africa  
-    - IT and Finance pay the highest salaries  
-    - Certifications increase salary potential  
-    - Larger companies offer better compensation  
-    """)
+    st.write(
+        "Experience and industry are the strongest salary drivers in South Africa."
+    )
 
-    # -----------------------------
-    # GRAPH
-    # -----------------------------
+    # =========================
+    # CHART
+    # =========================
     fig, ax = plt.subplots()
     sns.histplot(df[salary_col], kde=True, ax=ax)
-    ax.set_title("South African Salary Distribution")
+    ax.set_title("Salary Distribution (South Africa)")
     st.pyplot(fig)
 
-    # -----------------------------
-    # PDF REPORT
-    # -----------------------------
+    # =========================
+    # PDF REPORT (PROFESSIONAL)
+    # =========================
+    def clean(text):
+        return str(text).encode("ascii", "ignore").decode()
+
     def create_pdf():
 
         pdf = FPDF()
         pdf.add_page()
 
-        pdf.set_font("Arial", "B", 14)
-        pdf.cell(200, 10, "SA Salary Intelligence Report", ln=True, align="C")
+        pdf.set_font("Arial", "B", 16)
+        pdf.cell(0, 10, "Salary Intelligence Report", ln=True, align="C")
 
         pdf.ln(5)
 
         pdf.set_font("Arial", size=11)
 
-        pdf.multi_cell(0, 8, f"""
-Experience: {experience}
+        report = f"""
+Generated: {datetime.now()}
+
+PROFILE
+Experience: {experience} years
 Skills: {skills}
 Certifications: {certifications}
 Education: {education}
@@ -178,28 +176,45 @@ Industry: {industry}
 Company Size: {company_size}
 Remote Work: {remote}
 
-Predicted Salary: R {prediction:,.0f}
-Salary Band: {salary_band}
-Market Status: {"Above Average" if prediction > market_avg else "Below Average"}
+PREDICTION
+Salary: R {prediction:,.0f}
+Band: {band}
 
-Generated: {datetime.now()}
-""")
+MARKET
+Average Salary: R {market_avg:,.0f}
+Status: {"Above Market" if prediction > market_avg else "Below Market"}
+"""
 
-        return pdf.output(dest="S").encode("latin-1")
+        pdf.multi_cell(0, 8, clean(report))
+
+        # Save chart
+        chart_path = "chart.png"
+        plt.figure()
+        sns.histplot(df[salary_col], kde=True)
+        plt.savefig(chart_path)
+        plt.close()
+
+        pdf.ln(5)
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 10, "Salary Distribution Chart", ln=True)
+
+        pdf.image(chart_path, w=180)
+
+        return pdf.output(dest="S").encode("latin-1", "ignore")
 
     st.download_button(
-        "Download Report",
+        "Download Professional Report",
         data=create_pdf(),
-        file_name="SA_salary_report.pdf",
+        file_name="salary_report.pdf",
         mime="application/pdf"
     )
 
-# -----------------------------
-# DATA VISUALIZATION
-# -----------------------------
+# =========================
+# DATA VISUALS
+# =========================
 st.divider()
 
-st.subheader("Market Analysis")
+st.subheader("Market Analytics")
 
 col1, col2 = st.columns(2)
 
@@ -215,9 +230,9 @@ with col2:
     ax.set_title("Experience vs Salary")
     st.pyplot(fig)
 
-# -----------------------------
+# =========================
 # MODEL PERFORMANCE
-# -----------------------------
+# =========================
 st.subheader("Model Performance")
 
 try:
@@ -225,12 +240,9 @@ try:
     X = X.reindex(columns=columns, fill_value=0)
 
     y = df[salary_col]
-
     y_pred = model.predict(X)
 
-    r2 = np.corrcoef(y, y_pred)[0, 1]
-
-    st.metric("Model Correlation Score", f"{r2:.2f}")
+    st.metric("Correlation Score", f"{np.corrcoef(y, y_pred)[0,1]:.2f}")
 
 except Exception as e:
-    st.warning(f"Evaluation skipped: {e}")
+    st.warning("Model evaluation skipped")
